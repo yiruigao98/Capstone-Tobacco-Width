@@ -21,9 +21,9 @@ br_thres_g = 130
 br_thres_b = 125
 
 # Parameter set 3: merging threshold
-mg_thres_rgb = 15
-mg_thres_hsv = 100
-mg_thres_gray_his_mean = 15
+mg_thres_rgb = 12.5
+mg_thres_hsv = 500
+mg_thres_gray_his_mean = 10
 mg_thres_gray_his_std = 5
 
 
@@ -40,25 +40,45 @@ def change_image_channels(image, image_path):
         image.save(image_path)
     return image
 
+# 中心裁剪
+def center_crop(image, size, dim):
+    x, y = image.shape[0], image.shape[1]
+    new_x = x // 2 - size // 2
+    new_y = y // 2 - size // 2
+    if dim == 3:
+        return image[new_x:(new_x + size), new_y:(new_y + size),:]
+    else:
+        return image[new_x:(new_x + size), new_y:(new_y + size)]
+
 np.set_printoptions(threshold=np.inf)
 
 # img = Image.open("target.bmp")
 
 # img = change_image_channels(img, '3rgb_target.bmp')
 # img = io.imread("3rgb_dense.png")
-img = io.imread("target.bmp")
-gray_img = cv2.imread("target.bmp", cv2.IMREAD_GRAYSCALE)
+img = io.imread("target2.bmp")
+gray_img = cv2.imread("target2.bmp", cv2.IMREAD_GRAYSCALE)
 hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-img = img[500:2500,1000:3000,:]
-gray_img = gray_img[500:2500,1000:3000]
-hsv_img = hsv_img[500:2500,1000:3000,:]
+# img = img[1000:2000,2000:3000,:]
+# gray_img = gray_img[1000:2000,2000:3000]
+# hsv_img = hsv_img[1000:2000,2000:3000,:]
+
+img = center_crop(img, 1000, 3)
+gray_img = center_crop(gray_img, 1000, 2)
+hsv_img = center_crop(hsv_img, 1000, 3)
 
 print(img.shape)
 img_h, img_w = img.shape[:2]
 
-segments = slic(img, n_segments = 5000, compactness = 10)
-print("shit!")
+print("*******************************************************************")
+print("Step 1: Super-pixel segmentation: pieces 5000, compactness 10...")
+print("*******************************************************************")
+segments = slic(img, n_segments = 800,
+                     compactness = 10, 
+                     sigma = 3,
+                     max_size_factor = 3)
+
 # get rid of background color:
 # print(segments)
 
@@ -112,6 +132,9 @@ for i in segment_list:
 
 
 # Merge:
+print("*******************************************************************")
+print("Step 2: Merging, based on RGB, HSV and gray scale histogram for each region...")
+print("*******************************************************************")
 merged_dic = {}
 for item in zip(segment_list, segment_list):
     merged_dic[item[0]] = item[1]
@@ -169,6 +192,9 @@ print("---------------------------------------------------------")
 print("End of super-pixel segmentation + merging...")
 print("It takes {} seconds...".format(time.time() - t0))
 
+print("*******************************************************************")
+print("Results displaying...")
+print("*******************************************************************")
 # print(segments)
 plt.subplot(121)
 plt.title("n_segments=10000")
@@ -184,9 +210,16 @@ plt.show()
 for (i, segVal) in enumerate(np.unique(merged_segments)):
     # construct a mask for the segment
     print("[x] inspecting segment {}, for {}".format(i, segVal))
-    mask = np.zeros(img.shape[:2], dtype="uint8")
-    mask[merged_segments == segVal] = 255
+    # mask = np.zeros(img.shape[:2], dtype="uint8")
+    # mask[merged_segments == segVal] = 255
+    mask = np.zeros(img.shape, dtype="uint8")
+    # for i in range(img.shape[0]):
+    #     for j in range(img.shape[1]):
+    #         mask[i,j,:] = np.array([255,255,255])
+    mask[:,:,:] = 255
+    # mask = img.copy()
+    # mask[merged_segments != segVal] = np.array([255,255,255])
+    mask[merged_segments == segVal] = img[merged_segments == segVal]
 
     # show the masked region
-    # cv2.imshow("Mask", mask)
-    cv2.imwrite(os.path.join("SegmentationData", "{}.jpg".format((str(i)))), mask)
+    cv2.imwrite(os.path.join("SegmentationData5", "{}.jpg".format((str(i)))), mask)
