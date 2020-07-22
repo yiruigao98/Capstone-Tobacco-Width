@@ -21,9 +21,10 @@ br_thres_g = 130
 br_thres_b = 125
 
 # Parameter set 3: merging threshold
-mg_thres_rgb = 12.5
+mg_thres_rgb = 30
+mg_thres_rgb_black = 5
 mg_thres_hsv = 500
-mg_thres_gray_his_mean = 10
+mg_thres_gray_his_mean = 5
 mg_thres_gray_his_std = 5
 
 
@@ -56,8 +57,8 @@ np.set_printoptions(threshold=np.inf)
 
 # img = change_image_channels(img, '3rgb_target.bmp')
 # img = io.imread("3rgb_dense.png")
-img = io.imread("target2.bmp")
-gray_img = cv2.imread("target2.bmp", cv2.IMREAD_GRAYSCALE)
+img = io.imread("target5.bmp")
+gray_img = cv2.imread("target5.bmp", cv2.IMREAD_GRAYSCALE)
 hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
 # img = img[1000:2000,2000:3000,:]
@@ -74,7 +75,7 @@ img_h, img_w = img.shape[:2]
 print("*******************************************************************")
 print("Step 1: Super-pixel segmentation: pieces 5000, compactness 10...")
 print("*******************************************************************")
-segments = slic(img, n_segments = 800,
+segments = slic(img, n_segments = 1000,
                      compactness = 10, 
                      sigma = 3,
                      max_size_factor = 3)
@@ -129,6 +130,8 @@ for i in segment_list:
     region.calc_mean_hsv(hsv_img)
     region.gaussian_mean_std(gray_img)        
     region_list.append(region)
+    if region.mean_rgb[1] < 100 and region.mean_rgb[2] < 100:
+        region.islight = False
 
 
 # Merge:
@@ -138,7 +141,6 @@ print("*******************************************************************")
 merged_dic = {}
 for item in zip(segment_list, segment_list):
     merged_dic[item[0]] = item[1]
-
 
 for region in region_list:
     if merged_dic[region.number] != region.number:
@@ -157,15 +159,31 @@ for region in region_list:
             compared_region = region_list[map_dic[merged_dic[n]]]
         else:
             compared_region = region_list[map_dic[n]]
-        if np.linalg.norm(target_mean_rgb - compared_region.mean_rgb) <= mg_thres_rgb or (abs(target_gray_mean - compared_region.gray_mean) <= mg_thres_gray_his_mean and abs(target_gray_std - compared_region.gray_std) <= mg_thres_gray_his_std) or (HSVDistance(target_mean_hsv, compared_region.mean_hsv) <= mg_thres_hsv):
-            print("We now merge Region {} into Region {}".format(n, region.number))
-            # merged_list.append(map_dic[n.number])
-            merged_dic[n] = region.number
-            delete_region_number.append(n)
-            region.points.extend(compared_region.points)
+
+        # both dark regions:
+        if not region.islight and not compared_region.islight:
+            if np.linalg.norm(target_mean_rgb - compared_region.mean_rgb) <= mg_thres_rgb_black or (abs(target_gray_mean - compared_region.gray_mean) <= mg_thres_gray_his_mean and abs(target_gray_std - compared_region.gray_std) <= mg_thres_gray_his_std) or (HSVDistance(target_mean_hsv, compared_region.mean_hsv) <= mg_thres_hsv):
+                print("We now merge Region {} into Region {}".format(n, region.number))
+                # merged_list.append(map_dic[n.number])
+                merged_dic[n] = region.number
+                delete_region_number.append(n)
+                region.points.extend(compared_region.points)
+        # both light regions or one light + one dark region:
+        else:
+            if np.linalg.norm(target_mean_rgb - compared_region.mean_rgb) <= mg_thres_rgb or (abs(target_gray_mean - compared_region.gray_mean) <= mg_thres_gray_his_mean and abs(target_gray_std - compared_region.gray_std) <= mg_thres_gray_his_std) or (HSVDistance(target_mean_hsv, compared_region.mean_hsv) <= mg_thres_hsv):
+                print("We now merge Region {} into Region {}".format(n, region.number))
+                # merged_list.append(map_dic[n.number])
+                merged_dic[n] = region.number
+                delete_region_number.append(n)
+                region.points.extend(compared_region.points)
+
     region.calc_mean_rgb(img)
     region.calc_mean_hsv(hsv_img)
     region.gaussian_mean_std(gray_img)
+    if region.mean_rgb[1] < 100 and region.mean_rgb[2] < 100:
+        region.islight = False
+    else:
+        region.islight = True
         
 print(merged_dic, len(merged_dic))
 
