@@ -9,6 +9,7 @@ class Region:
         self.mean_hsv = [0, 0, 0]
         self.gray_mean = 0
         self.gray_std = 0.0
+        self.islight = True
 
     def add_neighbor(self, neighbor_number):
         if not neighbor_number in self.neighbor:
