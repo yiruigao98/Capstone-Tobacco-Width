@@ -15,21 +15,31 @@ class Region:
         if not neighbor_number in self.neighbor:
             self.neighbor.append(neighbor_number)
 
-    def add_points(self, xy_pair):
-        if not xy_pair in self.points:
-            self.points.append(xy_pair)
+    def add_points(self, xy_pairs):
+        # if not xy_pair in self.points:
+        #     self.points.append(xy_pair)
+        # if self.points:
+        #     self.points = set(list(self.points.extend(list(xy_pairs))))
+        # else:
+        self.points = xy_pairs.tolist()
+
 
     def calc_mean_rgb(self, image):
         mean_rgb = np.array([0,0,0])
         for pair in self.points:
+        #     print(pair)
             mean_rgb += image[pair[0], pair[1],:]
-        self.mean_rgb = mean_rgb / len(self.points)
+        # print(mean_rgb)
+        # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+        # print(mean_rgb / [len(self.points)])
+        # print("****************************")
+        self.mean_rgb = mean_rgb / [len(self.points)]
 
     def calc_mean_hsv(self, hsv_image):
         mean_hsv = np.array([0,0,0])
         for pair in self.points:
             mean_hsv += hsv_image[pair[0], pair[1],:]
-        self.mean_hsv = mean_hsv / len(self.points)
+        self.mean_hsv = mean_hsv / [len(self.points)]
 
     def gaussian_mean_std(self, gray_image):
         gray_scale_list = []
